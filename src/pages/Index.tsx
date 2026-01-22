@@ -1,13 +1,41 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { OrderProvider, useOrder } from '@/context/OrderContext';
+import { PinLogin } from '@/components/PinLogin';
+import { TableSelection } from '@/components/TableSelection';
+import { MenuBrowser } from '@/components/MenuBrowser';
+import { Cart } from '@/components/Cart';
+import { OrderConfirmation } from '@/components/OrderConfirmation';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const ScreenRouter = () => {
+  const { currentScreen } = useOrder();
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={currentScreen}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        transition={{ duration: 0.2 }}
+        className="min-h-screen"
+      >
+        {currentScreen === 'login' && <PinLogin />}
+        {currentScreen === 'tables' && <TableSelection />}
+        {currentScreen === 'menu' && <MenuBrowser />}
+        {currentScreen === 'cart' && <Cart />}
+        {currentScreen === 'confirmation' && <OrderConfirmation />}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <OrderProvider>
+      <div className="min-h-screen bg-background">
+        <ScreenRouter />
       </div>
-    </div>
+    </OrderProvider>
   );
 };
 
