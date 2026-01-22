@@ -1,0 +1,99 @@
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { CartItem, MenuItem, AddOn, AppScreen } from '@/types/restaurant';
+
+interface OrderContextType {
+  currentScreen: AppScreen;
+  setCurrentScreen: (screen: AppScreen) => void;
+  selectedTable: number | null;
+  setSelectedTable: (table: number | null) => void;
+  cart: CartItem[];
+  addToCart: (item: MenuItem, addOns: AddOn[], notes: string, quantity: number) => void;
+  removeFromCart: (cartItemId: string) => void;
+  updateCartItemQuantity: (cartItemId: string, quantity: number) => void;
+  clearCart: () => void;
+  getCartTotal: () => number;
+  getCartItemCount: () => number;
+  isAuthenticated: boolean;
+  setIsAuthenticated: (auth: boolean) => void;
+}
+
+const OrderContext = createContext<OrderContextType | undefined>(undefined);
+
+export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('login');
+  const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const addToCart = (item: MenuItem, addOns: AddOn[], notes: string, quantity: number) => {
+    const cartItem: CartItem = {
+      id: `${item.id}-${Date.now()}`,
+      menuItem: item,
+      quantity,
+      selectedAddOns: addOns,
+      notes,
+    };
+    setCart((prev) => [...prev, cartItem]);
+  };
+
+  const removeFromCart = (cartItemId: string) => {
+    setCart((prev) => prev.filter((item) => item.id !== cartItemId));
+  };
+
+  const updateCartItemQuantity = (cartItemId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(cartItemId);
+      return;
+    }
+    setCart((prev) =>
+      prev.map((item) =>
+        item.id === cartItemId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  const getCartTotal = () => {
+    return cart.reduce((total, item) => {
+      const addOnsTotal = item.selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0);
+      return total + (item.menuItem.price + addOnsTotal) * item.quantity;
+    }, 0);
+  };
+
+  const getCartItemCount = () => {
+    return cart.reduce((count, item) => count + item.quantity, 0);
+  };
+
+  return (
+    <OrderContext.Provider
+      value={{
+        currentScreen,
+        setCurrentScreen,
+        selectedTable,
+        setSelectedTable,
+        cart,
+        addToCart,
+        removeFromCart,
+        updateCartItemQuantity,
+        clearCart,
+        getCartTotal,
+        getCartItemCount,
+        isAuthenticated,
+        setIsAuthenticated,
+      }}
+    >
+      {children}
+    </OrderContext.Provider>
+  );
+};
+
+export const useOrder = () => {
+  const context = useContext(OrderContext);
+  if (!context) {
+    throw new Error('useOrder must be used within an OrderProvider');
+  }
+  return context;
+};
