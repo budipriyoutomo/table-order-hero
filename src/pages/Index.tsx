@@ -1,6 +1,7 @@
 import { OrderProvider, useOrder } from '@/context/OrderContext';
 import { PinLogin } from '@/components/PinLogin';
 import { TableSelection } from '@/components/TableSelection';
+import { GuestInput } from '@/components/GuestInput';
 import { MenuBrowser } from '@/components/MenuBrowser';
 import { Cart } from '@/components/Cart';
 import { OrderConfirmation } from '@/components/OrderConfirmation';
@@ -21,6 +22,7 @@ const ScreenRouter = () => {
       >
         {currentScreen === 'login' && <PinLogin />}
         {currentScreen === 'tables' && <TableSelection />}
+        {currentScreen === 'guest-input' && <GuestInput />}
         {currentScreen === 'menu' && <MenuBrowser />}
         {currentScreen === 'cart' && <Cart />}
         {currentScreen === 'confirmation' && <OrderConfirmation />}

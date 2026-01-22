@@ -31,4 +31,4 @@ export interface Order {
   createdAt: Date;
 }
 
-export type AppScreen = 'login' | 'tables' | 'menu' | 'cart' | 'confirmation';
+export type AppScreen = 'login' | 'tables' | 'guest-input' | 'menu' | 'cart' | 'confirmation';

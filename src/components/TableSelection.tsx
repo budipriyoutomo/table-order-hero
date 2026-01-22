@@ -22,9 +22,14 @@ export const TableSelection = () => {
     ? tables 
     : tables.filter(table => table.status === activeFilter);
 
-  const handleTableSelect = (tableNumber: number) => {
+  const handleTableSelect = (tableNumber: number, tableStatus: TableStatus) => {
     setSelectedTable(tableNumber);
-    setCurrentScreen('menu');
+    // Only show guest input for empty tables, go directly to menu for others
+    if (tableStatus === 'kosong') {
+      setCurrentScreen('guest-input');
+    } else {
+      setCurrentScreen('menu');
+    }
   };
 
   const handleLogout = () => {
@@ -85,7 +90,6 @@ export const TableSelection = () => {
           <div className="grid grid-cols-3 gap-3">
             {filteredTables.map((table, index) => {
               const statusStyle = tableStatusColors[table.status];
-              const isSelectable = table.status === 'kosong';
               
               return (
                 <motion.button
@@ -94,13 +98,8 @@ export const TableSelection = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => isSelectable && handleTableSelect(table.number)}
-                  disabled={!isSelectable}
-                  className={`aspect-square rounded-2xl p-3 flex flex-col items-center justify-center transition-all touch-target shadow-card ${
-                    !isSelectable
-                      ? `${statusStyle.bg} border-2 ${statusStyle.border} opacity-70 cursor-not-allowed`
-                      : 'bg-card border-2 border-transparent hover:border-primary hover:shadow-glow active:bg-card-elevated'
-                  }`}
+                  onClick={() => handleTableSelect(table.number, table.status)}
+                  className={`aspect-square rounded-2xl p-3 flex flex-col items-center justify-center transition-all touch-target shadow-card ${statusStyle.bg} border-2 ${statusStyle.border} hover:shadow-glow active:scale-95`}
                 >
                   <span className="text-2xl font-bold text-foreground">{table.number}</span>
                   <span className="text-xs text-muted-foreground mt-0.5">{table.name}</span>
