@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { CartItem, MenuItem, AddOn, AppScreen } from '@/types/restaurant';
+import { GuestType } from '@/data/guestTypeData';
 
 interface OrderContextType {
   currentScreen: AppScreen;
@@ -15,6 +16,10 @@ interface OrderContextType {
   getCartItemCount: () => number;
   isAuthenticated: boolean;
   setIsAuthenticated: (auth: boolean) => void;
+  guestCount: number | null;
+  setGuestCount: (count: number | null) => void;
+  guestType: GuestType | null;
+  setGuestType: (type: GuestType | null) => void;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -24,6 +29,8 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [guestCount, setGuestCount] = useState<number | null>(null);
+  const [guestType, setGuestType] = useState<GuestType | null>(null);
 
   const addToCart = (item: MenuItem, addOns: AddOn[], notes: string, quantity: number) => {
     const cartItem: CartItem = {
@@ -83,6 +90,10 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         getCartItemCount,
         isAuthenticated,
         setIsAuthenticated,
+        guestCount,
+        setGuestCount,
+        guestType,
+        setGuestType,
       }}
     >
       {children}
