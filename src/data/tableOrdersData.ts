@@ -30,9 +30,9 @@ export const tableOrders: TableOrder[] = [
   {
     tableNumber: 3,
     items: [
-      createCartItem('1', 2, 'Extra crispy please'),
-      createCartItem('7', 1, '', ['ao-8']),
-      createCartItem('15', 2),
+      createCartItem('app-1', 2, 'Extra crispy please'),
+      createCartItem('main-2', 1, '', ['ao-8']),
+      createCartItem('drink-1', 2),
     ],
     guestCount: 3,
     guestType: 'regular',
@@ -41,10 +41,10 @@ export const tableOrders: TableOrder[] = [
   {
     tableNumber: 5,
     items: [
-      createCartItem('8', 1, 'Well done'),
-      createCartItem('9', 1),
-      createCartItem('16', 2),
-      createCartItem('19', 1, '', ['ao-26']),
+      createCartItem('main-1', 1, 'Well done'),
+      createCartItem('main-3', 1),
+      createCartItem('drink-2', 2),
+      createCartItem('dessert-1', 1, '', ['ao-27']),
     ],
     guestCount: 2,
     guestType: 'vip',
@@ -53,9 +53,9 @@ export const tableOrders: TableOrder[] = [
   {
     tableNumber: 7,
     items: [
-      createCartItem('2', 1),
-      createCartItem('10', 2, 'No mushrooms'),
-      createCartItem('17', 3),
+      createCartItem('app-2', 1),
+      createCartItem('pizza-1', 2, 'No mushrooms'),
+      createCartItem('drink-3', 3),
     ],
     guestCount: 4,
     guestType: 'member',
@@ -64,9 +64,9 @@ export const tableOrders: TableOrder[] = [
   {
     tableNumber: 8,
     items: [
-      createCartItem('3', 2, '', ['ao-4']),
-      createCartItem('11', 1),
-      createCartItem('18', 4),
+      createCartItem('app-3', 2, '', ['ao-5']),
+      createCartItem('pasta-1', 1),
+      createCartItem('drink-1', 4),
     ],
     guestCount: 6,
     guestType: 'family',
@@ -75,10 +75,10 @@ export const tableOrders: TableOrder[] = [
   {
     tableNumber: 10,
     items: [
-      createCartItem('4', 1),
-      createCartItem('12', 1, 'Extra cheese', ['ao-15']),
-      createCartItem('14', 2),
-      createCartItem('20', 2),
+      createCartItem('app-1', 1),
+      createCartItem('pizza-3', 1, 'Extra cheese', ['ao-15']),
+      createCartItem('pasta-2', 2),
+      createCartItem('dessert-2', 2),
     ],
     guestCount: 3,
     guestType: 'regular',
@@ -87,9 +87,9 @@ export const tableOrders: TableOrder[] = [
   {
     tableNumber: 12,
     items: [
-      createCartItem('5', 2),
-      createCartItem('6', 1),
-      createCartItem('13', 1, '', ['ao-19']),
+      createCartItem('app-2', 2),
+      createCartItem('main-1', 1),
+      createCartItem('pasta-2', 1, '', ['ao-19']),
     ],
     guestCount: 2,
     guestType: 'vip',
