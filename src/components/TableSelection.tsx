@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, Filter } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
 import { tables, tableStatusLabels, tableStatusColors, TableStatus } from '@/data/tableData';
+import { getOrderByTable, TableOrder } from '@/data/tableOrdersData';
+import { ExistingOrdersSheet } from './ExistingOrdersSheet';
 
 type FilterOption = 'all' | TableStatus;
 
@@ -15,19 +17,44 @@ const filterOptions: { value: FilterOption; label: string }[] = [
 ];
 
 export const TableSelection = () => {
-  const { setCurrentScreen, setSelectedTable, setIsAuthenticated } = useOrder();
+  const { setCurrentScreen, setSelectedTable, setIsAuthenticated, loadExistingOrder } = useOrder();
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+  const [selectedOrderSheet, setSelectedOrderSheet] = useState<{
+    order: TableOrder;
+    tableNumber: number;
+    tableStatus: TableStatus;
+  } | null>(null);
 
   const filteredTables = activeFilter === 'all' 
     ? tables 
     : tables.filter(table => table.status === activeFilter);
 
   const handleTableSelect = (tableNumber: number, tableStatus: TableStatus) => {
-    setSelectedTable(tableNumber);
-    // Only show guest input for empty tables, go directly to menu for others
     if (tableStatus === 'kosong') {
+      setSelectedTable(tableNumber);
       setCurrentScreen('guest-input');
     } else {
+      // Show existing order sheet for occupied tables
+      const existingOrder = getOrderByTable(tableNumber);
+      if (existingOrder) {
+        setSelectedOrderSheet({
+          order: existingOrder,
+          tableNumber,
+          tableStatus,
+        });
+      } else {
+        // No existing order, go directly to menu
+        setSelectedTable(tableNumber);
+        setCurrentScreen('menu');
+      }
+    }
+  };
+
+  const handleAddMoreItems = () => {
+    if (selectedOrderSheet) {
+      setSelectedTable(selectedOrderSheet.tableNumber);
+      loadExistingOrder(selectedOrderSheet.order);
+      setSelectedOrderSheet(null);
       setCurrentScreen('menu');
     }
   };
@@ -138,6 +165,19 @@ export const TableSelection = () => {
           </div>
         </div>
       </div>
+
+      {/* Existing Orders Sheet */}
+      <AnimatePresence>
+        {selectedOrderSheet && (
+          <ExistingOrdersSheet
+            order={selectedOrderSheet.order}
+            tableNumber={selectedOrderSheet.tableNumber}
+            tableStatus={selectedOrderSheet.tableStatus}
+            onAddMore={handleAddMoreItems}
+            onClose={() => setSelectedOrderSheet(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
