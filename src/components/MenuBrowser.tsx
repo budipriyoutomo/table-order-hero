@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Plus, Minus, X } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Plus, Minus, X, Loader2 } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
-import { categories, menuItems } from '@/data/menuData';
+import { useMenuData } from '@/hooks/useMenuData';
 import { MenuItem, AddOn } from '@/types/restaurant';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -15,11 +15,18 @@ export const MenuBrowser = () => {
     setSelectedTable,
   } = useOrder();
 
-  const [activeCategory, setActiveCategory] = useState(categories[0].id);
+  const { menuItems, categories, isLoading, error } = useMenuData();
+
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
   const [notes, setNotes] = useState('');
+
+  // Set default category when data loads
+  if (categories.length > 0 && !activeCategory) {
+    setActiveCategory(categories[0].id);
+  }
 
   const filteredItems = menuItems.filter((item) => item.category === activeCategory);
   const cartCount = getCartItemCount();
@@ -71,8 +78,8 @@ export const MenuBrowser = () => {
               <ArrowLeft className="w-5 h-5 text-secondary-foreground" />
             </motion.button>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Table {selectedTable}</h1>
-              <p className="text-xs text-muted-foreground">Browse menu</p>
+              <h1 className="text-lg font-bold text-foreground">Meja {selectedTable}</h1>
+              <p className="text-xs text-muted-foreground">Pilih menu</p>
             </div>
           </div>
           <motion.button
@@ -90,54 +97,79 @@ export const MenuBrowser = () => {
         </div>
 
         {/* Category Tabs */}
-        <ScrollArea className="mt-3 -mx-4 px-4">
-          <div className="flex gap-2 pb-1 w-max">
-            {categories.map((category) => (
+        {!isLoading && categories.length > 0 && (
+          <ScrollArea className="mt-3 -mx-4 px-4">
+            <div className="flex gap-2 pb-1 w-max">
+              {categories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all touch-target ${
+                    activeCategory === category.id
+                      ? 'gradient-primary text-primary-foreground shadow-glow'
+                      : 'bg-secondary text-secondary-foreground'
+                  }`}
+                >
+                  <span className="mr-1">{category.icon}</span>
+                  {category.name}
+                </motion.button>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </header>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center">
+            <p className="text-destructive font-medium mb-2">Gagal memuat menu</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Items - List View */}
+      {!isLoading && !error && (
+        <div className="flex-1 p-4">
+          <div className="space-y-2">
+            {filteredItems.map((item, index) => (
               <motion.button
-                key={category.id}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveCategory(category.id)}
-                className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all touch-target ${
-                  activeCategory === category.id
-                    ? 'gradient-primary text-primary-foreground shadow-glow'
-                    : 'bg-secondary text-secondary-foreground'
-                }`}
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => handleItemClick(item)}
+                className="w-full bg-card rounded-xl p-4 text-left shadow-card hover:shadow-elevated transition-all active:bg-card/80"
               >
-                <span className="mr-1">{category.icon}</span>
-                {category.name}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground">{item.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                    {item.addOns.length > 0 && (
+                      <p className="text-xs text-primary/70 mt-1">
+                        +{item.addOns.length} add-on tersedia
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-primary font-bold text-lg">${item.price.toFixed(2)}</p>
+                  </div>
+                </div>
               </motion.button>
             ))}
           </div>
-        </ScrollArea>
-      </header>
-
-      {/* Menu Items */}
-      <div className="flex-1 p-4">
-        <div className="grid grid-cols-2 gap-3">
-          {filteredItems.map((item, index) => (
-            <motion.button
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleItemClick(item)}
-              className="bg-card rounded-2xl overflow-hidden text-left shadow-card hover:shadow-elevated transition-shadow"
-            >
-              <div className="aspect-square bg-muted relative">
-                <div className="absolute inset-0 flex items-center justify-center text-4xl">
-                  {categories.find((c) => c.id === item.category)?.icon}
-                </div>
-              </div>
-              <div className="p-3">
-                <h3 className="font-semibold text-foreground text-sm line-clamp-1">{item.name}</h3>
-                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
-                <p className="text-primary font-bold mt-2">${item.price.toFixed(2)}</p>
-              </div>
-            </motion.button>
-          ))}
         </div>
-      </div>
+      )}
 
       {/* Item Detail Modal */}
       <AnimatePresence>
