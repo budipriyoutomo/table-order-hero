@@ -4,9 +4,16 @@ import { ArrowLeft, Users, Filter } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
 import { tables, tableStatusLabels, tableStatusColors, TableStatus } from '@/data/tableData';
 import { getOrderByTable, TableOrder } from '@/data/tableOrdersData';
-import { ExistingOrdersSheet } from './ExistingOrdersSheet';
+import { TableActionsSheet, TableAction } from './TableActionsSheet';
+import { MoveTableDialog } from './MoveTableDialog';
+import { JoinTableDialog } from './JoinTableDialog';
+import { SplitTableDialog } from './SplitTableDialog';
+import { CartItem } from '@/types/restaurant';
+import { toast } from '@/hooks/use-toast';
 
 type FilterOption = 'all' | TableStatus;
+
+type ActiveDialog = 'actions' | 'move' | 'join' | 'split' | null;
 
 const filterOptions: { value: FilterOption; label: string }[] = [
   { value: 'all', label: 'Semua Meja' },
@@ -19,13 +26,14 @@ const filterOptions: { value: FilterOption; label: string }[] = [
 export const TableSelection = () => {
   const { setCurrentScreen, setSelectedTable, setIsAuthenticated, loadExistingOrder } = useOrder();
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
-  const [selectedOrderSheet, setSelectedOrderSheet] = useState<{
+  const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
+  const [selectedOrderData, setSelectedOrderData] = useState<{
     order: TableOrder;
     tableNumber: number;
     tableStatus: TableStatus;
   } | null>(null);
 
-  const filteredTables = activeFilter === 'all' 
+  const filteredTables = activeFilter === 'all'
     ? tables 
     : tables.filter(table => table.status === activeFilter);
 
@@ -34,14 +42,15 @@ export const TableSelection = () => {
       setSelectedTable(tableNumber);
       setCurrentScreen('guest-input');
     } else {
-      // Show existing order sheet for occupied tables
+      // Show table actions sheet for occupied tables
       const existingOrder = getOrderByTable(tableNumber);
       if (existingOrder) {
-        setSelectedOrderSheet({
+        setSelectedOrderData({
           order: existingOrder,
           tableNumber,
           tableStatus,
         });
+        setActiveDialog('actions');
       } else {
         // No existing order, go directly to menu
         setSelectedTable(tableNumber);
@@ -50,11 +59,59 @@ export const TableSelection = () => {
     }
   };
 
+  const handleTableAction = (action: TableAction) => {
+    if (action === 'add-more') {
+      handleAddMoreItems();
+    } else {
+      setActiveDialog(action);
+    }
+  };
+
+  const closeDialog = () => {
+    setActiveDialog(null);
+    setSelectedOrderData(null);
+  };
+
+  const handleMoveTable = (targetTableNumber: number) => {
+    if (selectedOrderData) {
+      // In a real app, this would update the backend
+      toast({
+        title: "Meja Dipindahkan",
+        description: `Pesanan dari Meja ${selectedOrderData.tableNumber} dipindahkan ke Meja ${targetTableNumber}`,
+      });
+      closeDialog();
+    }
+  };
+
+  const handleJoinTables = (targetTableNumbers: number[]) => {
+    if (selectedOrderData) {
+      // In a real app, this would merge orders in the backend
+      toast({
+        title: "Meja Digabungkan",
+        description: `Meja ${selectedOrderData.tableNumber} digabungkan dengan Meja ${targetTableNumbers.join(', ')}`,
+      });
+      closeDialog();
+    }
+  };
+
+  const handleSplitTable = (splitData: { targetTable: number; items: CartItem[] }[]) => {
+    if (selectedOrderData && splitData.length > 0) {
+      // In a real app, this would split order in the backend
+      const targetTable = splitData[0].targetTable;
+      const itemCount = splitData[0].items.reduce((sum, item) => sum + item.quantity, 0);
+      toast({
+        title: "Meja Dipisahkan",
+        description: `${itemCount} item dipindahkan dari Meja ${selectedOrderData.tableNumber} ke Meja ${targetTable}`,
+      });
+      closeDialog();
+    }
+  };
+
   const handleAddMoreItems = () => {
-    if (selectedOrderSheet) {
-      setSelectedTable(selectedOrderSheet.tableNumber);
-      loadExistingOrder(selectedOrderSheet.order);
-      setSelectedOrderSheet(null);
+    if (selectedOrderData) {
+      setSelectedTable(selectedOrderData.tableNumber);
+      loadExistingOrder(selectedOrderData.order);
+      closeDialog();
       setCurrentScreen('menu');
     }
   };
@@ -166,15 +223,42 @@ export const TableSelection = () => {
         </div>
       </div>
 
-      {/* Existing Orders Sheet */}
+      {/* Table Actions Sheet */}
       <AnimatePresence>
-        {selectedOrderSheet && (
-          <ExistingOrdersSheet
-            order={selectedOrderSheet.order}
-            tableNumber={selectedOrderSheet.tableNumber}
-            tableStatus={selectedOrderSheet.tableStatus}
-            onAddMore={handleAddMoreItems}
-            onClose={() => setSelectedOrderSheet(null)}
+        {activeDialog === 'actions' && selectedOrderData && (
+          <TableActionsSheet
+            order={selectedOrderData.order}
+            tableNumber={selectedOrderData.tableNumber}
+            tableStatus={selectedOrderData.tableStatus}
+            onAction={handleTableAction}
+            onClose={closeDialog}
+          />
+        )}
+
+        {activeDialog === 'move' && selectedOrderData && (
+          <MoveTableDialog
+            order={selectedOrderData.order}
+            sourceTableNumber={selectedOrderData.tableNumber}
+            onConfirm={handleMoveTable}
+            onClose={() => setActiveDialog('actions')}
+          />
+        )}
+
+        {activeDialog === 'join' && selectedOrderData && (
+          <JoinTableDialog
+            order={selectedOrderData.order}
+            sourceTableNumber={selectedOrderData.tableNumber}
+            onConfirm={handleJoinTables}
+            onClose={() => setActiveDialog('actions')}
+          />
+        )}
+
+        {activeDialog === 'split' && selectedOrderData && (
+          <SplitTableDialog
+            order={selectedOrderData.order}
+            sourceTableNumber={selectedOrderData.tableNumber}
+            onConfirm={handleSplitTable}
+            onClose={() => setActiveDialog('actions')}
           />
         )}
       </AnimatePresence>
