@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, History } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
 
 export const Cart = () => {
@@ -7,9 +7,11 @@ export const Cart = () => {
     setCurrentScreen,
     selectedTable,
     cart,
+    existingOrderItems,
     removeFromCart,
     updateCartItemQuantity,
     getCartTotal,
+    getExistingOrderTotal,
   } = useOrder();
 
   const handleSubmitOrder = () => {
@@ -22,6 +24,8 @@ export const Cart = () => {
     const addOnsTotal = item.selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0);
     return (item.menuItem.price + addOnsTotal) * item.quantity;
   };
+
+  const grandTotal = getCartTotal() + getExistingOrderTotal();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -42,9 +46,58 @@ export const Cart = () => {
         </div>
       </header>
 
-      {/* Cart Items */}
-      <div className="flex-1 p-4">
-        {cart.length === 0 ? (
+      {/* Existing Order Items */}
+      <div className="flex-1 p-4 space-y-4">
+        {existingOrderItems.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <History className="w-4 h-4" />
+              <span className="text-sm font-medium">Pesanan Sebelumnya</span>
+            </div>
+            {existingOrderItems.map((item, index) => (
+              <div
+                key={`existing-${item.id}-${index}`}
+                className="bg-secondary/30 rounded-2xl p-4 border border-border/50"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">{item.menuItem.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {item.quantity}x @ ${item.menuItem.price.toFixed(2)}
+                    </p>
+                  </div>
+                  <span className="font-semibold text-muted-foreground">
+                    ${getItemTotal(item).toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Add-ons */}
+                {item.selectedAddOns.length > 0 && (
+                  <div className="mb-2">
+                    {item.selectedAddOns.map((addOn) => (
+                      <span
+                        key={addOn.id}
+                        className="inline-block text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full mr-1 mb-1"
+                      >
+                        + {addOn.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {item.notes && (
+                  <p className="text-xs text-muted-foreground italic bg-muted/50 p-2 rounded-lg">
+                    "{item.notes}"
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* New Cart Items */}
+        {cart.length === 0 && existingOrderItems.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -61,8 +114,14 @@ export const Cart = () => {
               Browse Menu
             </motion.button>
           </motion.div>
-        ) : (
+        ) : cart.length > 0 && (
           <div className="space-y-3">
+            {existingOrderItems.length > 0 && (
+              <div className="flex items-center gap-2 text-primary">
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">Pesanan Tambahan</span>
+              </div>
+            )}
             <AnimatePresence>
               {cart.map((item) => (
                 <motion.div
@@ -143,23 +202,33 @@ export const Cart = () => {
       </div>
 
       {/* Order Summary & Submit */}
-      {cart.length > 0 && (
-        <div className="sticky bottom-0 bg-card border-t border-border p-4 space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="text-foreground font-semibold">${getCartTotal().toFixed(2)}</span>
+      {(cart.length > 0 || existingOrderItems.length > 0) && (
+        <div className="sticky bottom-0 bg-card border-t border-border p-4 space-y-3">
+          {existingOrderItems.length > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Pesanan Sebelumnya</span>
+              <span className="text-muted-foreground">${getExistingOrderTotal().toFixed(2)}</span>
+            </div>
+          )}
+          {cart.length > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Pesanan Baru</span>
+              <span className="text-foreground font-semibold">${getCartTotal().toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-2 border-t border-border">
+            <span className="text-lg font-bold text-foreground">Grand Total</span>
+            <span className="text-2xl font-bold text-primary">${grandTotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-lg font-bold text-foreground">Total</span>
-            <span className="text-2xl font-bold text-primary">${getCartTotal().toFixed(2)}</span>
-          </div>
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={handleSubmitOrder}
-            className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-bold text-lg shadow-glow touch-target"
-          >
-            Submit Order
-          </motion.button>
+          {cart.length > 0 && (
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSubmitOrder}
+              className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-bold text-lg shadow-glow touch-target"
+            >
+              Submit Pesanan Baru
+            </motion.button>
+          )}
         </div>
       )}
     </div>
