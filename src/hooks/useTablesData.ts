@@ -7,10 +7,10 @@ export const useTablesData = () => {
   const [tables, setTables] = useState<TableData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useOrder();
+  const { currentUser, logout } = useOrder();
 
   const fetchTables = useCallback(async () => {
-    if (!currentUser?.api_key || !currentUser?.api_secret) {
+    if (!currentUser?.sid) {
       setError('User not authenticated');
       setIsLoading(false);
       return;
@@ -22,8 +22,7 @@ export const useTablesData = () => {
     try {
       const { data, error: fnError } = await supabase.functions.invoke('get-tables', {
         body: {
-          api_key: currentUser.api_key,
-          api_secret: currentUser.api_secret,
+          sid: currentUser.sid, // Only send session ID, not credentials
         },
       });
 
@@ -33,11 +32,20 @@ export const useTablesData = () => {
         return;
       }
 
+      // Handle session expiration
+      if (data?.code === 'SESSION_EXPIRED' || data?.code === 'NO_SESSION') {
+        setError('Session expired, please login again');
+        logout(); // Force re-login
+        return;
+      }
+
       if (data?.success && data?.tables) {
         const transformedTables = data.tables.map((table: ApiTable) => 
           transformApiTable(table)
         );
         setTables(transformedTables);
+      } else if (data?.error) {
+        setError(data.error);
       } else {
         setError('Invalid response from server');
       }
@@ -47,7 +55,7 @@ export const useTablesData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, logout]);
 
   useEffect(() => {
     fetchTables();

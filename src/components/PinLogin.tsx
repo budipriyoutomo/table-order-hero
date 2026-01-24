@@ -9,12 +9,14 @@ export const PinLogin = () => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { setCurrentScreen, setIsAuthenticated, setCurrentUser } = useOrder();
   const { toast } = useToast();
 
   const handleLogin = async (pinValue: string) => {
     setIsLoading(true);
     setError(false);
+    setErrorMessage(null);
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('login-with-pin', {
@@ -36,7 +38,44 @@ export const PinLogin = () => {
         return;
       }
 
+      // Handle rate limiting
+      if (data?.error === 'Too many requests') {
+        setError(true);
+        const retryAfter = data.retryAfter || 60;
+        setErrorMessage(`Terlalu banyak percobaan. Coba lagi dalam ${retryAfter} detik.`);
+        toast({
+          title: 'Terlalu banyak percobaan',
+          description: `Silakan tunggu ${retryAfter} detik`,
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          setPin('');
+          setError(false);
+          setErrorMessage(null);
+        }, 3000);
+        return;
+      }
+
+      // Handle lockout
+      if (data?.error?.includes('temporarily locked')) {
+        setError(true);
+        const retryAfter = data.retryAfter || 120;
+        setErrorMessage(`Akun terkunci sementara. Coba lagi dalam ${retryAfter} detik.`);
+        toast({
+          title: 'Akun terkunci',
+          description: 'Terlalu banyak percobaan gagal',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          setPin('');
+          setError(false);
+          setErrorMessage(null);
+        }, 3000);
+        return;
+      }
+
       if (data?.success && data?.user) {
+        // User object now only contains safe data (no credentials)
         setIsAuthenticated(true);
         setCurrentUser(data.user);
         toast({
@@ -78,6 +117,7 @@ export const PinLogin = () => {
       const newPin = pin + num;
       setPin(newPin);
       setError(false);
+      setErrorMessage(null);
 
       if (newPin.length === 6) {
         handleLogin(newPin);
@@ -89,6 +129,7 @@ export const PinLogin = () => {
     if (!isLoading) {
       setPin((prev) => prev.slice(0, -1));
       setError(false);
+      setErrorMessage(null);
     }
   };
 
@@ -161,7 +202,7 @@ export const PinLogin = () => {
               exit={{ opacity: 0 }}
               className="text-destructive text-center mb-4 text-sm"
             >
-              PIN salah. Silakan coba lagi.
+              {errorMessage || 'PIN salah. Silakan coba lagi.'}
             </motion.p>
           )}
         </AnimatePresence>
