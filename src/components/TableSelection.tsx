@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Filter, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, Users, Filter, RefreshCw, Loader2, Building2, MapPin, ChevronDown } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
 import { getOrderByTable, TableOrder } from '@/data/tableOrdersData';
 import { TableActionsSheet, TableAction } from './TableActionsSheet';
@@ -11,6 +11,13 @@ import { CartItem } from '@/types/restaurant';
 import { toast } from '@/hooks/use-toast';
 import { useTablesData } from '@/hooks/useTablesData';
 import { TableData, getStatusLabel } from '@/types/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type FilterOption = 'all' | TableData['status'];
 
@@ -46,6 +53,8 @@ export const TableSelection = () => {
   const { setCurrentScreen, setSelectedTable, logout, loadExistingOrder, currentUser } = useOrder();
   const { tables, isLoading, error, refetch } = useTablesData();
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+  const [selectedFloor, setSelectedFloor] = useState<string>('all');
+  const [selectedZone, setSelectedZone] = useState<string>('all');
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [selectedOrderData, setSelectedOrderData] = useState<{
     order: TableOrder;
@@ -54,11 +63,39 @@ export const TableSelection = () => {
     tableStatus: TableData['status'];
   } | null>(null);
 
-  // Group tables by zone/floor
+  // Extract unique floors and zones
+  const { floors, zones } = useMemo(() => {
+    const uniqueFloors = [...new Set(tables.map(t => t.floor))].filter(Boolean).sort();
+    const uniqueZones = [...new Set(tables.map(t => t.zone))].filter(Boolean).sort();
+    return { floors: uniqueFloors, zones: uniqueZones };
+  }, [tables]);
+
+  // Filter zones based on selected floor
+  const availableZones = useMemo(() => {
+    if (selectedFloor === 'all') {
+      return zones;
+    }
+    return [...new Set(tables.filter(t => t.floor === selectedFloor).map(t => t.zone))].filter(Boolean).sort();
+  }, [tables, selectedFloor, zones]);
+
+  // Group tables by zone/floor with all filters applied
   const groupedTables = useMemo(() => {
-    const filtered = activeFilter === 'all'
-      ? tables
-      : tables.filter(table => table.status === activeFilter);
+    let filtered = tables;
+    
+    // Apply status filter
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter(table => table.status === activeFilter);
+    }
+    
+    // Apply floor filter
+    if (selectedFloor !== 'all') {
+      filtered = filtered.filter(table => table.floor === selectedFloor);
+    }
+    
+    // Apply zone filter
+    if (selectedZone !== 'all') {
+      filtered = filtered.filter(table => table.zone === selectedZone);
+    }
     
     return filtered.reduce((acc, table) => {
       const key = `${table.floor} - ${table.zone}`;
@@ -68,7 +105,13 @@ export const TableSelection = () => {
       acc[key].push(table);
       return acc;
     }, {} as Record<string, TableData[]>);
-  }, [tables, activeFilter]);
+  }, [tables, activeFilter, selectedFloor, selectedZone]);
+
+  // Reset zone when floor changes
+  const handleFloorChange = (floor: string) => {
+    setSelectedFloor(floor);
+    setSelectedZone('all');
+  };
 
   const handleTableSelect = (table: TableData) => {
     if (table.status === 'empty') {
@@ -189,27 +232,75 @@ export const TableSelection = () => {
         </div>
       </header>
 
-      {/* Status Filter */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2 mb-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Filter Status</span>
+      {/* Filters Section */}
+      <div className="px-4 py-3 border-b border-border space-y-3">
+        {/* Floor and Zone Filters */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Floor Filter */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Lantai</span>
+            </div>
+            <Select value={selectedFloor} onValueChange={handleFloorChange}>
+              <SelectTrigger className="w-full h-9 bg-card border-border">
+                <SelectValue placeholder="Pilih Lantai" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border z-50">
+                <SelectItem value="all">Semua Lantai</SelectItem>
+                {floors.map((floor) => (
+                  <SelectItem key={floor} value={floor}>
+                    {floor}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Zone Filter */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Zona</span>
+            </div>
+            <Select value={selectedZone} onValueChange={setSelectedZone}>
+              <SelectTrigger className="w-full h-9 bg-card border-border">
+                <SelectValue placeholder="Pilih Zona" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border z-50">
+                <SelectItem value="all">Semua Zona</SelectItem>
+                {availableZones.map((zone) => (
+                  <SelectItem key={zone} value={zone}>
+                    {zone}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-          {filterOptions.map((option) => (
-            <motion.button
-              key={option.value}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setActiveFilter(option.value)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                activeFilter === option.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              {option.label}
-            </motion.button>
-          ))}
+
+        {/* Status Filter */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Status</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+            {filterOptions.map((option) => (
+              <motion.button
+                key={option.value}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setActiveFilter(option.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  activeFilter === option.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {option.label}
+              </motion.button>
+            ))}
+          </div>
         </div>
       </div>
 
