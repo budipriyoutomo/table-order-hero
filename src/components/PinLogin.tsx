@@ -1,39 +1,95 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Delete, Lock } from 'lucide-react';
+import { Delete, Lock, Loader2 } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
-
-const CORRECT_PIN = '123456';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const PinLogin = () => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
-  const { setCurrentScreen, setIsAuthenticated } = useOrder();
+  const [isLoading, setIsLoading] = useState(false);
+  const { setCurrentScreen, setIsAuthenticated, setCurrentUser } = useOrder();
+  const { toast } = useToast();
+
+  const handleLogin = async (pinValue: string) => {
+    setIsLoading(true);
+    setError(false);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('login-with-pin', {
+        body: { pin: pinValue },
+      });
+
+      if (fnError) {
+        console.error('Login function error:', fnError);
+        setError(true);
+        toast({
+          title: 'Login gagal',
+          description: 'Terjadi kesalahan saat menghubungi server',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          setPin('');
+          setError(false);
+        }, 600);
+        return;
+      }
+
+      if (data?.success && data?.user) {
+        setIsAuthenticated(true);
+        setCurrentUser(data.user);
+        toast({
+          title: `Selamat datang, ${data.user.full_name}!`,
+          description: 'Login berhasil',
+        });
+        setTimeout(() => setCurrentScreen('tables'), 300);
+      } else {
+        setError(true);
+        toast({
+          title: 'PIN salah',
+          description: 'Silakan coba lagi',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          setPin('');
+          setError(false);
+        }, 600);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(true);
+      toast({
+        title: 'Login gagal',
+        description: 'Terjadi kesalahan jaringan',
+        variant: 'destructive',
+      });
+      setTimeout(() => {
+        setPin('');
+        setError(false);
+      }, 600);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleNumberPress = (num: string) => {
-    if (pin.length < 6) {
+    if (pin.length < 6 && !isLoading) {
       const newPin = pin + num;
       setPin(newPin);
       setError(false);
 
       if (newPin.length === 6) {
-        if (newPin === CORRECT_PIN) {
-          setIsAuthenticated(true);
-          setTimeout(() => setCurrentScreen('tables'), 300);
-        } else {
-          setError(true);
-          setTimeout(() => {
-            setPin('');
-            setError(false);
-          }, 600);
-        }
+        handleLogin(newPin);
       }
     }
   };
 
   const handleDelete = () => {
-    setPin((prev) => prev.slice(0, -1));
-    setError(false);
+    if (!isLoading) {
+      setPin((prev) => prev.slice(0, -1));
+      setError(false);
+    }
   };
 
   const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
@@ -51,7 +107,11 @@ export const PinLogin = () => {
             className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center shadow-glow"
             whileHover={{ scale: 1.05 }}
           >
-            <Lock className="w-10 h-10 text-primary-foreground" />
+            {isLoading ? (
+              <Loader2 className="w-10 h-10 text-primary-foreground animate-spin" />
+            ) : (
+              <Lock className="w-10 h-10 text-primary-foreground" />
+            )}
           </motion.div>
         </div>
 
@@ -101,7 +161,21 @@ export const PinLogin = () => {
               exit={{ opacity: 0 }}
               className="text-destructive text-center mb-4 text-sm"
             >
-              Incorrect PIN. Please try again.
+              PIN salah. Silakan coba lagi.
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* Loading Message */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.p
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-muted-foreground text-center mb-4 text-sm"
+            >
+              Memverifikasi PIN...
             </motion.p>
           )}
         </AnimatePresence>
@@ -116,7 +190,8 @@ export const PinLogin = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={handleDelete}
-                  className="w-full h-16 rounded-xl bg-secondary flex items-center justify-center touch-target transition-colors hover:bg-secondary/80 active:bg-secondary/60"
+                  disabled={isLoading}
+                  className="w-full h-16 rounded-xl bg-secondary flex items-center justify-center touch-target transition-colors hover:bg-secondary/80 active:bg-secondary/60 disabled:opacity-50"
                 >
                   <Delete className="w-6 h-6 text-secondary-foreground" />
                 </motion.button>
@@ -124,7 +199,8 @@ export const PinLogin = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleNumberPress(num)}
-                  className="w-full h-16 rounded-xl bg-card text-2xl font-semibold text-foreground touch-target transition-colors hover:bg-card-elevated active:bg-muted shadow-card"
+                  disabled={isLoading}
+                  className="w-full h-16 rounded-xl bg-card text-2xl font-semibold text-foreground touch-target transition-colors hover:bg-card-elevated active:bg-muted shadow-card disabled:opacity-50"
                 >
                   {num}
                 </motion.button>
@@ -135,7 +211,7 @@ export const PinLogin = () => {
 
         {/* Demo hint */}
         <p className="text-muted-foreground text-center text-xs mt-8">
-          Demo PIN: 123456
+          Demo PIN: 220804
         </p>
       </motion.div>
     </div>

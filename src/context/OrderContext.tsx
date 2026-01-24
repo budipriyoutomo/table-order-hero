@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { CartItem, MenuItem, AddOn, AppScreen } from '@/types/restaurant';
+import { CartItem, MenuItem, AddOn, AppScreen, AuthUser } from '@/types/restaurant';
 import { GuestType, guestTypes } from '@/data/guestTypeData';
 import { TableOrder } from '@/data/tableOrdersData';
 
@@ -20,10 +20,13 @@ interface OrderContextType {
   loadExistingOrder: (order: TableOrder) => void;
   isAuthenticated: boolean;
   setIsAuthenticated: (auth: boolean) => void;
+  currentUser: AuthUser | null;
+  setCurrentUser: (user: AuthUser | null) => void;
   guestCount: number | null;
   setGuestCount: (count: number | null) => void;
   guestType: GuestType | null;
   setGuestType: (type: GuestType | null) => void;
+  logout: () => void;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -34,8 +37,20 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [existingOrderItems, setExistingOrderItems] = useState<CartItem[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [guestCount, setGuestCount] = useState<number | null>(null);
   const [guestType, setGuestType] = useState<GuestType | null>(null);
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setCurrentScreen('login');
+    setSelectedTable(null);
+    setCart([]);
+    setExistingOrderItems([]);
+    setGuestCount(null);
+    setGuestType(null);
+  };
 
   const loadExistingOrder = (order: TableOrder) => {
     setExistingOrderItems(order.items);
@@ -113,10 +128,13 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         loadExistingOrder,
         isAuthenticated,
         setIsAuthenticated,
+        currentUser,
+        setCurrentUser,
         guestCount,
         setGuestCount,
         guestType,
         setGuestType,
+        logout,
       }}
     >
       {children}
