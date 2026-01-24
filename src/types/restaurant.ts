@@ -33,11 +33,10 @@ export interface Order {
 
 export type AppScreen = 'login' | 'tables' | 'guest-input' | 'menu' | 'cart' | 'confirmation';
 
+// AuthUser no longer contains sensitive credentials - only session ID
 export interface AuthUser {
   full_name: string;
   username?: string;
   email?: string;
-  api_key?: string;
-  api_secret?: string;
-  sid?: string;
+  sid: string; // Session ID for server-side credential lookup
 }
