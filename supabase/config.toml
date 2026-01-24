@@ -2,3 +2,6 @@ project_id = "ikrsyjhtllbxzkeymatm"
 
 [functions.login-with-pin]
 verify_jwt = false
+
+[functions.get-tables]
+verify_jwt = false
