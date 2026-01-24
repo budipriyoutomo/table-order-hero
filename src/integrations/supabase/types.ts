@@ -14,13 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_sessions: {
+        Row: {
+          api_key: string
+          api_secret: string
+          created_at: string
+          email: string | null
+          expires_at: string
+          full_name: string
+          id: string
+          sid: string
+          username: string | null
+        }
+        Insert: {
+          api_key: string
+          api_secret: string
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          full_name: string
+          id?: string
+          sid: string
+          username?: string | null
+        }
+        Update: {
+          api_key?: string
+          api_secret?: string
+          created_at?: string
+          email?: string | null
+          expires_at?: string
+          full_name?: string
+          id?: string
+          sid?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_sessions: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

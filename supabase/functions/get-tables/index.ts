@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, getClientIP } from "../_shared/rate-limiter.ts";
-import { getSessionCredentials, refreshSession } from "../_shared/session-store.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,11 +56,35 @@ serve(async (req) => {
       );
     }
 
-    // Get credentials from server-side session store
-    const credentials = getSessionCredentials(sid);
+    // Get credentials from database using service role
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    if (!credentials) {
-      console.error('Session not found or expired:', sid);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Look up session and check expiry
+    const { data: session, error: sessionError } = await supabase
+      .from('user_sessions')
+      .select('api_key, api_secret, expires_at')
+      .eq('sid', sid)
+      .single();
+    
+    if (sessionError || !session) {
+      console.error('Session not found:', sid);
+      return new Response(
+        JSON.stringify({ error: 'Session expired, please login again', code: 'SESSION_EXPIRED' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    // Check if session has expired
+    if (new Date(session.expires_at) < new Date()) {
+      console.error('Session expired:', sid);
+      // Clean up expired session
+      await supabase.from('user_sessions').delete().eq('sid', sid);
       return new Response(
         JSON.stringify({ error: 'Session expired, please login again', code: 'SESSION_EXPIRED' }),
         { 
@@ -70,9 +94,6 @@ serve(async (req) => {
       );
     }
 
-    // Refresh session to extend expiry
-    refreshSession(sid);
-
     console.log('Fetching tables with server-side credentials...');
 
     const response = await fetch('https://restodemo.sopwer.id/api/method/resto.api.get_all_tables_with_details', {
@@ -80,7 +101,7 @@ serve(async (req) => {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `token ${credentials.apiKey}:${credentials.apiSecret}`,
+        'Authorization': `token ${session.api_key}:${session.api_secret}`,
       },
     });
 
