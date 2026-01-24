@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   checkRateLimit, 
   getClientIP, 
@@ -6,7 +7,6 @@ import {
   recordFailedLogin, 
   clearFailedLogins 
 } from "../_shared/rate-limiter.ts";
-import { createSession } from "../_shared/session-store.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -127,16 +127,44 @@ serve(async (req) => {
       // Clear failed login attempts on success
       clearFailedLogins(`login:${clientIP}`);
       
-      // Store credentials server-side and create session
-      const sid = data.message?.sid || `session-${Date.now()}`;
-      createSession({
-        sid,
-        fullName: data.message?.full_name || data.full_name,
-        username: data.message?.username,
-        email: data.message?.email,
-        apiKey: data.message?.api_key,
-        apiSecret: data.message?.api_secret,
-      });
+      const sid = data.message?.sid || `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      
+      // Store session in Supabase database using service role
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Delete any existing session for this sid (in case of re-login)
+      await supabase
+        .from('user_sessions')
+        .delete()
+        .eq('sid', sid);
+      
+      // Insert new session with credentials stored securely
+      const { error: insertError } = await supabase
+        .from('user_sessions')
+        .insert({
+          sid,
+          full_name: data.message?.full_name || data.full_name,
+          username: data.message?.username,
+          email: data.message?.email,
+          api_key: data.message?.api_key,
+          api_secret: data.message?.api_secret,
+        });
+      
+      if (insertError) {
+        console.error('Failed to store session:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create session' }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      console.log('Session stored successfully for sid:', sid);
       
       // Return ONLY safe user data - NO credentials sent to client
       return new Response(
