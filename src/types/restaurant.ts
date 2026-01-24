@@ -32,3 +32,12 @@ export interface Order {
 }
 
 export type AppScreen = 'login' | 'tables' | 'guest-input' | 'menu' | 'cart' | 'confirmation';
+
+export interface AuthUser {
+  full_name: string;
+  username?: string;
+  email?: string;
+  api_key?: string;
+  api_secret?: string;
+  sid?: string;
+}
