@@ -59,7 +59,7 @@ export const GuestInput = () => {
             </div>
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => setCount((c) => c + 1)}
+              onClick={() => setCount((c) => Math.min(50, c + 1))}
               className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center touch-target shadow-glow"
             >
               <Plus className="w-6 h-6 text-primary-foreground" />
