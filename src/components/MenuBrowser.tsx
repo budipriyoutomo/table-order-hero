@@ -235,11 +235,15 @@ export const MenuBrowser = () => {
                   <h3 className="font-semibold text-foreground mb-3">Special Instructions</h3>
                   <textarea
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    onChange={(e) => setNotes(e.target.value.slice(0, 500))}
+                    maxLength={500}
                     placeholder="E.g., no onions, extra sauce..."
                     className="w-full p-3 rounded-xl bg-secondary border-2 border-transparent focus:border-primary outline-none text-foreground placeholder:text-muted-foreground resize-none"
                     rows={3}
                   />
+                  <div className="text-xs text-muted-foreground mt-1 text-right">
+                    {notes.length}/500 characters
+                  </div>
                 </div>
 
                 {/* Quantity */}
@@ -256,7 +260,7 @@ export const MenuBrowser = () => {
                     <span className="text-xl font-bold text-foreground w-8 text-center">{quantity}</span>
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={() => setQuantity((q) => q + 1)}
+                      onClick={() => setQuantity((q) => Math.min(99, q + 1))}
                       className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center touch-target shadow-glow"
                     >
                       <Plus className="w-5 h-5 text-primary-foreground" />
