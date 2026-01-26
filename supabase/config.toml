@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.get-menu]
 verify_jwt = false
+
+[functions.get-taxes]
+verify_jwt = false
