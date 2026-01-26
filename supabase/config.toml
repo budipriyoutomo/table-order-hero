@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.get-tables]
 verify_jwt = false
+
+[functions.get-menu]
+verify_jwt = false
