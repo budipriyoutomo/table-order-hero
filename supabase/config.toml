@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.get-taxes]
 verify_jwt = false
+
+[functions.get-pos-invoice]
+verify_jwt = false
