@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, Filter, RefreshCw, Loader2, Building2, MapPin, ChevronDown } from 'lucide-react';
 import { useOrder } from '@/context/OrderContext';
-import { getOrderByTable, TableOrder } from '@/data/tableOrdersData';
 import { TableActionsSheet, TableAction } from './TableActionsSheet';
 import { MoveTableDialog } from './MoveTableDialog';
 import { JoinTableDialog } from './JoinTableDialog';
@@ -10,7 +9,9 @@ import { SplitTableDialog } from './SplitTableDialog';
 import { CartItem } from '@/types/restaurant';
 import { toast } from '@/hooks/use-toast';
 import { useTablesData } from '@/hooks/useTablesData';
+import { usePosInvoiceData } from '@/hooks/usePosInvoiceData';
 import { TableData, getStatusLabel } from '@/types/api';
+import { PosInvoice } from '@/types/pos-invoice-api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 type FilterOption = 'all' | TableData['status'];
 type ActiveDialog = 'actions' | 'move' | 'join' | 'split' | null;
@@ -81,7 +82,6 @@ export const TableSelection = () => {
     setCurrentScreen,
     setSelectedTable,
     logout,
-    loadExistingOrder,
     currentUser
   } = useOrder();
   const {
@@ -90,12 +90,19 @@ export const TableSelection = () => {
     error,
     refetch
   } = useTablesData();
+  
+  const {
+    invoice: currentInvoice,
+    isLoading: isLoadingInvoice,
+    fetchInvoice,
+    clearInvoice,
+  } = usePosInvoiceData();
+  
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
   const [selectedFloor, setSelectedFloor] = useState<string>('all');
   const [selectedZone, setSelectedZone] = useState<string>('all');
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
-  const [selectedOrderData, setSelectedOrderData] = useState<{
-    order: TableOrder;
+  const [selectedTableData, setSelectedTableData] = useState<{
     tableId: string;
     tableName: string;
     tableStatus: TableData['status'];
@@ -155,23 +162,34 @@ export const TableSelection = () => {
     setSelectedFloor(floor);
     setSelectedZone('all');
   };
-  const handleTableSelect = (table: TableData) => {
+  const handleTableSelect = async (table: TableData) => {
     if (table.status === 'empty') {
       setSelectedTable(parseInt(table.id) || 0);
       setCurrentScreen('guest-input');
     } else {
-      // Show table actions sheet for occupied tables
-      const existingOrder = getOrderByTable(parseInt(table.id) || 1);
-      if (existingOrder) {
-        setSelectedOrderData({
-          order: existingOrder,
+      // For non-empty tables, fetch POS Invoice data
+      if (table.invoiceId) {
+        // Store table data first
+        setSelectedTableData({
           tableId: table.id,
           tableName: table.name,
-          tableStatus: table.status
+          tableStatus: table.status,
         });
-        setActiveDialog('actions');
+        
+        // Fetch the invoice
+        const invoice = await fetchInvoice(table.invoiceId);
+        if (invoice) {
+          setActiveDialog('actions');
+        } else {
+          // If no invoice found, show error but still allow navigation
+          toast({
+            title: "Info",
+            description: "Tidak dapat mengambil data pesanan",
+            variant: "destructive",
+          });
+        }
       } else {
-        // No existing order, go directly to menu
+        // No invoice ID, go directly to menu (new order on occupied table)
         setSelectedTable(parseInt(table.id) || 0);
         setCurrentScreen('menu');
       }
@@ -186,23 +204,24 @@ export const TableSelection = () => {
   };
   const closeDialog = () => {
     setActiveDialog(null);
-    setSelectedOrderData(null);
+    setSelectedTableData(null);
+    clearInvoice();
   };
   const handleMoveTable = (targetTableNumber: number) => {
-    if (selectedOrderData) {
+    if (selectedTableData) {
       toast({
         title: "Meja Dipindahkan",
-        description: `Pesanan dari Meja ${selectedOrderData.tableName} dipindahkan ke Meja ${targetTableNumber}`
+        description: `Pesanan dari Meja ${selectedTableData.tableName} dipindahkan ke Meja ${targetTableNumber}`
       });
       closeDialog();
       refetch();
     }
   };
   const handleJoinTables = (targetTableNumbers: number[]) => {
-    if (selectedOrderData) {
+    if (selectedTableData) {
       toast({
         title: "Meja Digabungkan",
-        description: `Meja ${selectedOrderData.tableName} digabungkan dengan Meja ${targetTableNumbers.join(', ')}`
+        description: `Meja ${selectedTableData.tableName} digabungkan dengan Meja ${targetTableNumbers.join(', ')}`
       });
       closeDialog();
       refetch();
@@ -212,21 +231,21 @@ export const TableSelection = () => {
     targetTable: number;
     items: CartItem[];
   }[]) => {
-    if (selectedOrderData && splitData.length > 0) {
+    if (selectedTableData && splitData.length > 0) {
       const targetTable = splitData[0].targetTable;
       const itemCount = splitData[0].items.reduce((sum, item) => sum + item.quantity, 0);
       toast({
         title: "Meja Dipisahkan",
-        description: `${itemCount} item dipindahkan dari Meja ${selectedOrderData.tableName} ke Meja ${targetTable}`
+        description: `${itemCount} item dipindahkan dari Meja ${selectedTableData.tableName} ke Meja ${targetTable}`
       });
       closeDialog();
       refetch();
     }
   };
   const handleAddMoreItems = () => {
-    if (selectedOrderData) {
-      setSelectedTable(parseInt(selectedOrderData.tableId) || 0);
-      loadExistingOrder(selectedOrderData.order);
+    if (selectedTableData) {
+      setSelectedTable(parseInt(selectedTableData.tableId) || 0);
+      // TODO: Load existing order from invoice data
       closeDialog();
       setCurrentScreen('menu');
     }
@@ -401,13 +420,49 @@ export const TableSelection = () => {
 
       {/* Table Actions Sheet */}
       <AnimatePresence>
-        {activeDialog === 'actions' && selectedOrderData && <TableActionsSheet order={selectedOrderData.order} tableNumber={parseInt(selectedOrderData.tableId) || 0} tableStatus={selectedOrderData.tableStatus === 'empty' ? 'kosong' : selectedOrderData.tableStatus === 'occupied' ? 'terisi' : selectedOrderData.tableStatus === 'served' ? 'disajikan' : selectedOrderData.tableStatus === 'billing' ? 'tagihan' : 'terisi'} onAction={handleTableAction} onClose={closeDialog} />}
+        {activeDialog === 'actions' && selectedTableData && currentInvoice && (
+          <TableActionsSheet 
+            invoice={currentInvoice} 
+            tableNumber={parseInt(selectedTableData.tableId) || 0} 
+            tableStatus={
+              selectedTableData.tableStatus === 'empty' ? 'kosong' : 
+              selectedTableData.tableStatus === 'occupied' ? 'terisi' : 
+              selectedTableData.tableStatus === 'ordered' ? 'sudah_order' :
+              selectedTableData.tableStatus === 'served' ? 'disajikan' : 
+              selectedTableData.tableStatus === 'billing' ? 'tagihan' : 'terisi'
+            } 
+            isLoading={isLoadingInvoice}
+            onAction={handleTableAction} 
+            onClose={closeDialog} 
+          />
+        )}
 
-        {activeDialog === 'move' && selectedOrderData && <MoveTableDialog order={selectedOrderData.order} sourceTableNumber={parseInt(selectedOrderData.tableId) || 0} onConfirm={handleMoveTable} onClose={() => setActiveDialog('actions')} />}
+        {activeDialog === 'move' && selectedTableData && currentInvoice && (
+          <MoveTableDialog 
+            order={{ tableNumber: parseInt(selectedTableData.tableId), items: [], guestCount: 0, guestType: '', createdAt: new Date() }} 
+            sourceTableNumber={parseInt(selectedTableData.tableId) || 0} 
+            onConfirm={handleMoveTable} 
+            onClose={() => setActiveDialog('actions')} 
+          />
+        )}
 
-        {activeDialog === 'join' && selectedOrderData && <JoinTableDialog order={selectedOrderData.order} sourceTableNumber={parseInt(selectedOrderData.tableId) || 0} onConfirm={handleJoinTables} onClose={() => setActiveDialog('actions')} />}
+        {activeDialog === 'join' && selectedTableData && currentInvoice && (
+          <JoinTableDialog 
+            order={{ tableNumber: parseInt(selectedTableData.tableId), items: [], guestCount: 0, guestType: '', createdAt: new Date() }} 
+            sourceTableNumber={parseInt(selectedTableData.tableId) || 0} 
+            onConfirm={handleJoinTables} 
+            onClose={() => setActiveDialog('actions')} 
+          />
+        )}
 
-        {activeDialog === 'split' && selectedOrderData && <SplitTableDialog order={selectedOrderData.order} sourceTableNumber={parseInt(selectedOrderData.tableId) || 0} onConfirm={handleSplitTable} onClose={() => setActiveDialog('actions')} />}
+        {activeDialog === 'split' && selectedTableData && currentInvoice && (
+          <SplitTableDialog 
+            order={{ tableNumber: parseInt(selectedTableData.tableId), items: [], guestCount: 0, guestType: '', createdAt: new Date() }} 
+            sourceTableNumber={parseInt(selectedTableData.tableId) || 0} 
+            onConfirm={handleSplitTable} 
+            onClose={() => setActiveDialog('actions')} 
+          />
+        )}
       </AnimatePresence>
     </div>;
 };

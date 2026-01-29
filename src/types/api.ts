@@ -10,6 +10,7 @@ export interface ApiTable {
   typeCustomer: string | null;
   floor: string;
   takenBy: string | null;
+  invoice_name: string | null; // POS Invoice ID for occupied tables
 }
 
 // Mapped table type for frontend use
@@ -24,6 +25,7 @@ export interface TableData {
   pax: number;
   customerType: string | null;
   takenBy: string | null;
+  invoiceId: string | null; // POS Invoice ID for occupied tables
 }
 
 // Map API status to frontend status
@@ -74,4 +76,5 @@ export const transformApiTable = (apiTable: ApiTable): TableData => ({
   pax: apiTable.pax,
   customerType: apiTable.typeCustomer,
   takenBy: apiTable.takenBy,
+  invoiceId: apiTable.invoice_name || null,
 });
